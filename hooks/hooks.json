@@ -1,0 +1,63 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${GROK_PLUGIN_ROOT}/scripts/run-hook\" context-refresh",
+            "timeout": 15,
+            "async": true,
+            "statusMessage": "Refreshing observational memory context..."
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${GROK_PLUGIN_ROOT}/scripts/run-hook\" context-refresh",
+            "timeout": 15,
+            "async": true,
+            "statusMessage": "Refreshing observational memory context..."
+          },
+          {
+            "type": "command",
+            "command": "\"${GROK_PLUGIN_ROOT}/scripts/run-hook\" checkpoint",
+            "timeout": 30,
+            "async": true,
+            "statusMessage": "Checkpointing observational memory (Grok)..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${GROK_PLUGIN_ROOT}/scripts/run-hook\" checkpoint",
+            "timeout": 30,
+            "async": true,
+            "statusMessage": "Checkpointing observational memory (Grok)..."
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${GROK_PLUGIN_ROOT}/scripts/run-hook\" checkpoint",
+            "timeout": 30,
+            "async": true,
+            "statusMessage": "Checkpointing observational memory (Grok)..."
+          }
+        ]
+      }
+    ]
+  }
+}

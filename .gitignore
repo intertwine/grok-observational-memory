@@ -1,0 +1,16 @@
+# Python / test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.coverage
+htmlcov/
+
+# OS / editor noise
+.DS_Store
+*.swp

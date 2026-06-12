@@ -1,0 +1,18 @@
+{
+  "name": "observational-memory",
+  "version": "0.9.0",
+  "description": "Observational memory for Grok Build: observes sessions, reflects durable facts, recalls them in every session.",
+  "author": {
+    "name": "Intertwine Systems",
+    "url": "https://github.com/intertwine"
+  },
+  "repository": "https://github.com/intertwine/grok-observational-memory",
+  "homepage": "https://github.com/intertwine/grok-observational-memory",
+  "license": "MIT",
+  "keywords": [
+    "observational-memory",
+    "observational memory",
+    "cross-session memory",
+    "automatic session memory"
+  ]
+}

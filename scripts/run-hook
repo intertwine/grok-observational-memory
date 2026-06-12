@@ -1,0 +1,74 @@
+#!/bin/sh
+# run-hook — forward-compat dispatcher for plugin-delivered hooks
+# (hooks/hooks.json).
+#
+# Grok Build 0.2.50 inventories plugin hooks but never executes them; the
+# live wiring is the user-level hook file written by /om-setup. If a future
+# Grok version wires the plugin hooks adapter, this wrapper prevents
+# double-firing: when the user-level file registers the same event, the
+# user-level wiring owns it and we exit 0 deterministically.
+#
+# Usage (from hooks.json): run-hook <context-refresh|checkpoint>
+# Always exits 0; never prints memory content.
+
+# Kill switch FIRST — gates everything.
+if [ "${OM_GROK_PLUGIN_DISABLE:-0}" = "1" ]; then
+    exit 0
+fi
+
+set -u
+
+USER_HOOK_FILE="$HOME/.grok/hooks/grok-observational-memory.json"
+
+SCRIPT_NAME="${1:-}"
+case "$SCRIPT_NAME" in
+    context-refresh | checkpoint) ;;
+    *) exit 0 ;;
+esac
+
+# Only meaningful when invoked through the plugin hooks adapter, which
+# injects GROK_PLUGIN_ROOT. Outside it we cannot locate our scripts: exit 0.
+PLUGIN_ROOT="${GROK_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ]; then
+    exit 0
+fi
+
+# Deterministic self-suppression: GROK_PLUGIN_ROOT is set AND the user-level
+# hook file registers this event -> the user-level file owns it.
+EVENT_KEY=""
+case "${GROK_HOOK_EVENT:-}" in
+    session_start | SessionStart) EVENT_KEY="SessionStart" ;;
+    session_end | SessionEnd) EVENT_KEY="SessionEnd" ;;
+    user_prompt_submit | UserPromptSubmit) EVENT_KEY="UserPromptSubmit" ;;
+    pre_compact | PreCompact) EVENT_KEY="PreCompact" ;;
+esac
+
+if [ -f "$USER_HOOK_FILE" ]; then
+    if [ -z "$EVENT_KEY" ] || ! command -v python3 >/dev/null 2>&1; then
+        # Event undeterminable: be conservative — the user-level file exists,
+        # so assume it owns the event rather than risk a double fire.
+        exit 0
+    fi
+    if python3 - "$USER_HOOK_FILE" "$EVENT_KEY" <<'PY'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as fh:
+        data = json.load(fh)
+except Exception:
+    sys.exit(1)
+groups = (data.get("hooks") or {}).get(sys.argv[2]) or []
+registered = any(isinstance(g, dict) and g.get("hooks") for g in groups)
+sys.exit(0 if registered else 1)
+PY
+    then
+        exit 0
+    fi
+fi
+
+TARGET="$PLUGIN_ROOT/scripts/$SCRIPT_NAME.sh"
+if [ -x "$TARGET" ]; then
+    exec "$TARGET"
+fi
+exit 0

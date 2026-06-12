@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    name: shellcheck + JSON (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: |
+          if ! command -v shellcheck >/dev/null 2>&1; then
+            if [ "$RUNNER_OS" = "macOS" ]; then
+              brew install shellcheck
+            else
+              sudo apt-get update && sudo apt-get install -y shellcheck
+            fi
+          fi
+          shellcheck --version
+      - name: shellcheck scripts
+        run: shellcheck scripts/run-hook scripts/*.sh
+      - name: Validate JSON manifests
+        run: |
+          python3 -m json.tool hooks/hooks.json >/dev/null
+          python3 -m json.tool .grok-plugin/plugin.json >/dev/null
+
+  test:
+    name: pytest (python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Run tests
+        run: uv run --group dev pytest -q
