@@ -45,14 +45,14 @@ The lag is one session, by design and unavoidable on 0.2.50. Refreshing at both 
 - If `~/.grok/AGENTS.md` is a symlink, the script writes through to the real file so the rename never silently replaces the link.
 - The refresh is cwd-agnostic on purpose: no `--cwd`, no `--task`. A global file gets global context; project-specific routing comes from `/recall` and the skill.
 - If a user deletes the block, normal refreshes do not recreate it — that user has opted out until they re-run `/om-setup` (only setup passes `--init`).
-- "Plugin gone" degrade: if Grok's plugin registry parses and no longer lists the plugin, the block content is replaced with a one-line removal notice instead of going stale forever. A missing or unreadable registry never triggers the degrade.
+- "Plugin gone" degrade: if Grok's plugin registry parses, matches the known 0.2.50 schema (a `repos` map whose entries carry a `plugins` map), and no longer lists the plugin, the block content is replaced with a one-line removal notice instead of going stale forever. A missing, unreadable, or unrecognized-schema registry (e.g. after a grok upgrade reshapes this undocumented file) never triggers the degrade — positive schema evidence is required before working context is replaced.
 
 ## Fail-closed contract
 
 Every hook-path script (`context-refresh.sh`, `checkpoint.sh`, `run-hook`) obeys the same rules:
 
 - The kill switch `OM_GROK_PLUGIN_DISABLE=1` is the **first** check, before anything else runs.
-- On any failure: exit 0, leave the target untouched, and emit at most one one-line breadcrumb to stderr.
+- On any failure: exit 0, leave the target untouched, and emit only short one-line breadcrumbs to stderr. A single run emits at most one *failure* breadcrumb; spec-mandated sync-exposure warnings (symlinked `AGENTS.md`, `~/.grok` inside a git work tree) can add a line or two on top.
 - Memory content never goes to stdout or stderr. Breadcrumbs are diagnostics only.
 - Hooks never block the session: `om grok-checkpoint` runs in a fully detached background subshell.
 

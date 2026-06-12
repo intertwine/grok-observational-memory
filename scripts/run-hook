@@ -16,6 +16,13 @@ if [ "${OM_GROK_PLUGIN_DISABLE:-0}" = "1" ]; then
     exit 0
 fi
 
+# HOME guard BEFORE set -u (paths below expand $HOME): keep the exit-0
+# contract even in a hostile hook environment with HOME unset.
+if [ -z "${HOME:-}" ]; then
+    echo "observational-memory(grok): HOME is unset - hook dispatch skipped" >&2
+    exit 0
+fi
+
 set -u
 
 USER_HOOK_FILE="$HOME/.grok/hooks/grok-observational-memory.json"
@@ -30,6 +37,14 @@ esac
 # injects GROK_PLUGIN_ROOT. Outside it we cannot locate our scripts: exit 0.
 PLUGIN_ROOT="${GROK_PLUGIN_ROOT:-}"
 if [ -z "$PLUGIN_ROOT" ]; then
+    exit 0
+fi
+
+# Consent gate: /om-setup is the only consent flow, and it creates the state
+# bin dir. Without that marker (setup never ran, or /om-teardown removed it),
+# never dispatch — otherwise a future grok that executes plugin hooks.json
+# could create the ~/.grok/AGENTS.md memory block without consent.
+if [ ! -d "$HOME/.local/state/grok-observational-memory/bin" ]; then
     exit 0
 fi
 

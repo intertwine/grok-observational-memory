@@ -54,7 +54,13 @@ om_lock_acquire() {
     fi
     if [ "$om_lock_stale" -gt 0 ] 2>/dev/null &&
         [ -n "$(find "$om_lock_path" -prune -mmin +"$om_lock_stale" -print -quit 2>/dev/null)" ]; then
-        rm -rf "$om_lock_path" 2>/dev/null
+        # Rename-then-remove reclaim: two racing reclaimers can both pass the
+        # -mmin check, but only one mv succeeds (atomic rename), so a peer can
+        # never `rm -rf` a lock that a different process just (re)acquired.
+        om_lock_reclaim="$om_lock_path.reclaim.$$"
+        if mv "$om_lock_path" "$om_lock_reclaim" 2>/dev/null; then
+            rm -rf "$om_lock_reclaim" 2>/dev/null
+        fi
         if mkdir "$om_lock_path" 2>/dev/null; then
             return 0
         fi

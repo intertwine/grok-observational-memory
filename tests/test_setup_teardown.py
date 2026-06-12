@@ -178,6 +178,26 @@ def test_teardown_idempotent(sandbox_with_om):
     assert res.returncode == 0
 
 
+def test_teardown_through_symlinked_agents_file(sandbox, tmp_path):
+    """Teardown splices through to the real file (realpath) and never replaces
+    the symlink with a regular file."""
+    sb = sandbox
+    real = tmp_path / "elsewhere" / "agents-real.md"
+    real.parent.mkdir(parents=True)
+    user_content = "# mine\nkeep this\n"
+    real.write_text(f"{user_content}{BLOCK_BEGIN}\nold memory\n{BLOCK_END}\n", encoding="utf-8")
+    sb.agents_file.parent.mkdir(parents=True)
+    sb.agents_file.symlink_to(real)
+
+    res = sb.run("teardown.sh")
+    assert res.returncode == 0
+    assert sb.agents_file.is_symlink()
+    text = real.read_text(encoding="utf-8")
+    assert "old memory" not in text
+    assert BLOCK_BEGIN not in text
+    assert user_content.strip() in text
+
+
 def test_teardown_leaves_malformed_block_untouched(sandbox):
     sb = sandbox
     malformed = f"{BLOCK_BEGIN}\nuser data\n{BLOCK_END}\n{BLOCK_END}\n"

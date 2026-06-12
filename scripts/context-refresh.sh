@@ -27,6 +27,13 @@ if [ "${OM_GROK_PLUGIN_DISABLE:-0}" = "1" ]; then
     exit 0
 fi
 
+# HOME guard BEFORE set -u / lib.sh (both expand $HOME): keep the exit-0
+# contract even in a hostile hook environment with HOME unset.
+if [ -z "${HOME:-}" ]; then
+    echo "observational-memory(grok): HOME is unset - context refresh skipped" >&2
+    exit 0
+fi
+
 set -u
 
 SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd) || exit 0
@@ -44,11 +51,13 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 # --- "Plugin gone" degrade -------------------------------------------------
-# If grok's install registry exists, parses, and no longer lists this plugin,
-# the user-level hook file is orphaned: replace the block CONTENT with a
-# one-line removal notice instead of stale memory. A missing/unreadable
-# registry is treated as "cannot determine" and does NOT degrade (degrading
-# wrongly would erase working context).
+# If grok's install registry exists, parses, MATCHES the known 0.2.50 schema,
+# and no longer lists this plugin, the user-level hook file is orphaned:
+# replace the block CONTENT with a one-line removal notice instead of stale
+# memory. A missing/unreadable registry — or one that parses but has an
+# unrecognized shape (plausible after any grok upgrade; this is an
+# undocumented internal file) — is treated as "cannot determine" and does
+# NOT degrade (degrading wrongly would erase working context every session).
 MODE="refresh"
 if [ -f "$OM_GROK_REGISTRY_FILE" ]; then
     if ! python3 - "$OM_GROK_REGISTRY_FILE" <<'PY'
@@ -60,10 +69,22 @@ try:
         data = json.load(fh)
 except Exception:
     sys.exit(0)  # unreadable registry: cannot determine — do not degrade
-for repo in (data.get("repos") or {}).values():
-    if isinstance(repo, dict) and "observational-memory" in (repo.get("plugins") or {}):
-        sys.exit(0)
-sys.exit(1)
+
+# Positive schema evidence required before degrading: the 0.2.50 shape is a
+# top-level "repos" dict whose values are dicts carrying a "plugins" dict.
+# Exit 1 (degrade) ONLY when that shape is confirmed AND the plugin is
+# absent from every confirmed repo entry.
+repos = data.get("repos") if isinstance(data, dict) else None
+if not isinstance(repos, dict):
+    sys.exit(0)  # unknown schema: cannot determine — do not degrade
+confirmed = False
+for repo in repos.values():
+    if not isinstance(repo, dict) or not isinstance(repo.get("plugins"), dict):
+        continue
+    confirmed = True
+    if "observational-memory" in repo["plugins"]:
+        sys.exit(0)  # still installed
+sys.exit(1 if confirmed else 0)
 PY
     then
         MODE="removed"
@@ -93,6 +114,11 @@ if ! mkdir -p "$TARGET_DIR" 2>/dev/null; then
     om_breadcrumb "cannot create $TARGET_DIR - context refresh skipped"
     exit 0
 fi
+# Sweep stale temp images from runs killed before any trap fired (EXIT traps
+# do not run on untrapped SIGKILL — grok's async timeout kill is realistic):
+# a leftover .om-agents-refresh.* holds a full memory image in a directory
+# that may be a git work tree.
+find "$TARGET_DIR" -maxdepth 1 -name '.om-agents-refresh.*' -mmin +60 -exec rm -f {} + 2>/dev/null || true
 
 # --- Cleanup trap -------------------------------------------------------------
 ENV_TMP=""
@@ -107,6 +133,10 @@ cleanup() {
     if [ "$LOCK_OWNED" = "1" ]; then rm -rf "$LOCK_PATH"; fi
 }
 trap cleanup EXIT
+# EXIT traps do not fire on untrapped signals (dash/ash semantics); trap the
+# realistic ones too so 0600 temp files holding memory content are removed.
+# cleanup is idempotent, so the EXIT trap re-running it is harmless.
+trap 'cleanup; exit 0' INT TERM HUP
 
 # --- Step 1: produce content (om context runs BEFORE the target is read) ------
 # The envelope is captured into a 0600 temp file under the private state dir;
@@ -122,6 +152,9 @@ else
         om_breadcrumb "cannot create state dir - context refresh skipped"
         exit 0
     }
+    # Sweep stale envelopes from killed runs (see the trap note above):
+    # they are 0600 but still hold memory content.
+    find "$OM_GROK_STATE_DIR/tmp" -name '.om-envelope.*' -mmin +60 -exec rm -f {} + 2>/dev/null || true
     ENV_TMP=$(mktemp "$OM_GROK_STATE_DIR/tmp/.om-envelope.XXXXXX" 2>/dev/null) || {
         om_breadcrumb "mktemp failed in state dir - context refresh skipped"
         exit 0
@@ -209,7 +242,9 @@ if not exists:
         sys.exit(7)  # nothing to degrade
     new_text = block + "\n"
 else:
-    with open(target, encoding="utf-8", errors="surrogateescape") as fh:
+    # newline="" disables universal-newline translation: CRLF user content
+    # must survive byte-for-byte (sentinel matching strips the trailing \r).
+    with open(target, encoding="utf-8", errors="surrogateescape", newline="") as fh:
         raw = fh.read()
     lines = raw.split("\n")
     begins = [i for i, line in enumerate(lines) if is_sentinel(line, BEGIN)]
@@ -237,7 +272,7 @@ if exists:
     except OSError:
         pass
 
-with open(tmp_path, "w", encoding="utf-8", errors="surrogateescape") as fh:
+with open(tmp_path, "w", encoding="utf-8", errors="surrogateescape", newline="") as fh:
     fh.write(new_text)
     fh.flush()
     os.fsync(fh.fileno())
@@ -251,6 +286,10 @@ STATUS=$?
 
 case "$STATUS" in
     0)
+        # Known limitation: the symlink lstat above and this rename are not
+        # atomic (TOCTOU). If AGENTS.md becomes a symlink in between, the
+        # rename replaces the link with a regular file. User-self race only —
+        # no privilege boundary is crossed; the next refresh warns.
         if mv -f "$TMP_FILE" "$REAL_TARGET" 2>/dev/null; then
             TMP_FILE=""
         else

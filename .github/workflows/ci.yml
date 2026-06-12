@@ -31,6 +31,7 @@ jobs:
         run: |
           python3 -m json.tool hooks/hooks.json >/dev/null
           python3 -m json.tool .grok-plugin/plugin.json >/dev/null
+          python3 -m json.tool docs/marketplace-entry.json >/dev/null
 
   test:
     name: pytest (python ${{ matrix.python }})

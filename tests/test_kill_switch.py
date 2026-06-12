@@ -1,10 +1,14 @@
-"""OM_GROK_PLUGIN_DISABLE=1 must short-circuit every script with zero side effects."""
+"""Environment guards: OM_GROK_PLUGIN_DISABLE=1 must short-circuit every script
+with zero side effects, and hook scripts must keep the exit-0 contract even
+when HOME is unset (no raw `set -u` errors)."""
 
 from __future__ import annotations
 
 import json
+import subprocess
 
 import pytest
+from conftest import SCRIPTS_DIR, SYSTEM_PATH
 
 KILL = {"OM_GROK_PLUGIN_DISABLE": "1"}
 
@@ -43,6 +47,31 @@ def test_kill_switch_run_hook_does_not_dispatch(sandbox, tmp_path):
     )
     assert res.returncode == 0
     assert not marker.exists()
+
+
+@pytest.mark.parametrize(
+    ("script", "args", "stdin"),
+    [
+        ("context-refresh.sh", (), ""),
+        ("checkpoint.sh", (), "{}"),
+        ("run-hook", ("context-refresh",), ""),
+    ],
+)
+def test_home_unset_hook_scripts_fail_closed(script, args, stdin):
+    """Hook scripts must exit 0 with a breadcrumb when HOME is unset, instead
+    of dying on a raw `set -u` unbound-variable error."""
+    res = subprocess.run(
+        [str(SCRIPTS_DIR / script), *args],
+        input=stdin,
+        capture_output=True,
+        text=True,
+        env={"PATH": SYSTEM_PATH, "LC_ALL": "C"},  # no HOME on purpose
+        timeout=30,
+    )
+    assert res.returncode == 0
+    assert res.stdout == ""
+    assert "HOME is unset" in res.stderr
+    assert "unbound variable" not in res.stderr
 
 
 def test_kill_switch_teardown_leaves_wiring_intact(sandbox):

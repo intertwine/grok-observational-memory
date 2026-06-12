@@ -19,6 +19,12 @@ if [ "${OM_GROK_PLUGIN_DISABLE:-0}" = "1" ]; then
     exit 0
 fi
 
+# HOME guard BEFORE set -u / lib.sh. Teardown may exit non-zero (visible failure).
+if [ -z "${HOME:-}" ]; then
+    echo "error: HOME is unset - cannot locate ~/.grok" >&2
+    exit 1
+fi
+
 set -u
 
 SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd) || exit 1
@@ -34,6 +40,21 @@ else
 fi
 
 # --- 2. Managed block in AGENTS.md ----------------------------------------------
+# Best-effort: take the same lock context-refresh.sh uses, so an in-flight
+# async refresh (grok allows it up to 15s) cannot rename a full new image
+# over AGENTS.md right after the splice and resurrect the block.
+TEARDOWN_LOCK="$OM_GROK_STATE_DIR/locks/agents-refresh.lock"
+TEARDOWN_LOCK_HELD=0
+if om_lock_acquire "$TEARDOWN_LOCK" 10; then
+    TEARDOWN_LOCK_HELD=1
+else
+    sleep 1
+    if om_lock_acquire "$TEARDOWN_LOCK" 10; then
+        TEARDOWN_LOCK_HELD=1
+    else
+        echo "warning: a context refresh may be in flight - re-run /om-teardown if the block reappears" >&2
+    fi
+fi
 if [ -f "$OM_GROK_AGENTS_FILE" ] && command -v python3 >/dev/null 2>&1; then
     python3 - "$OM_GROK_AGENTS_FILE" "$OM_BLOCK_BEGIN" "$OM_BLOCK_END" <<'PY'
 import os
@@ -44,7 +65,9 @@ path, BEGIN, END = sys.argv[1:4]
 real = os.path.realpath(path)
 
 try:
-    with open(real, encoding="utf-8", errors="surrogateescape") as fh:
+    # newline="" disables universal-newline translation (CRLF user content
+    # must survive the splice byte-for-byte).
+    with open(real, encoding="utf-8", errors="surrogateescape", newline="") as fh:
         raw = fh.read()
 except OSError:
     sys.exit(0)
@@ -67,7 +90,7 @@ elif len(begins) == 1 and len(ends) == 1 and begins[0] < ends[0]:
         except OSError:
             perm = 0o600
         fd, tmp = tempfile.mkstemp(prefix=".om-agents-teardown.", dir=os.path.dirname(real))
-        with os.fdopen(fd, "w", encoding="utf-8", errors="surrogateescape") as fh:
+        with os.fdopen(fd, "w", encoding="utf-8", errors="surrogateescape", newline="") as fh:
             fh.write(new_text)
             fh.flush()
             os.fsync(fh.fileno())
@@ -84,6 +107,9 @@ elif [ -f "$OM_GROK_AGENTS_FILE" ]; then
     echo "warning: python3 unavailable - remove the OM block from ~/.grok/AGENTS.md manually" >&2
 else
     echo "AGENTS.md already absent: $OM_GROK_AGENTS_FILE"
+fi
+if [ "$TEARDOWN_LOCK_HELD" = "1" ]; then
+    rm -rf "$TEARDOWN_LOCK"
 fi
 
 # --- 3. State dir ----------------------------------------------------------------

@@ -25,6 +25,12 @@ if [ "${OM_GROK_PLUGIN_DISABLE:-0}" = "1" ]; then
     exit 0
 fi
 
+# HOME guard BEFORE set -u / lib.sh. Setup may exit non-zero (visible failure).
+if [ -z "${HOME:-}" ]; then
+    echo "error: HOME is unset - cannot locate ~/.grok" >&2
+    exit 1
+fi
+
 set -u
 
 SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd) || exit 1
@@ -161,7 +167,9 @@ for group in (data.get("hooks") or {}).get("SessionStart") or []:
     if not isinstance(group, dict):
         continue
     for hook in group.get("hooks") or []:
-        cmd = hook.get("command", "") if isinstance(hook, dict) else ""
+        cmd = hook.get("command") if isinstance(hook, dict) else None
+        if not isinstance(cmd, str):
+            continue  # non-string command values (e.g. int) are not ours
         if "observational-memory" in cmd or "om context" in cmd or "hooks/claude/session-start" in cmd:
             sys.exit(0)
 sys.exit(1)

@@ -11,16 +11,13 @@ when-to-use: >
   identity questions like "what do you know about me"; expanding a recall
   handle that appears in startup context; questions about how observational
   memory works or whether it is set up.
-compatibility: Requires the om CLI (observational-memory >=0.8,<0.9)
-metadata:
-  author: Intertwine Systems
-  short-description: Recall and search persistent cross-session memory
 ---
 
 # Observational Memory
 
 You have access to a persistent memory system that compresses conversation
-transcripts into observations and reflections shared across sessions.
+transcripts into observations and reflections shared across sessions. It
+requires the `om` CLI (observational-memory `>=0.8,<0.9`) on PATH.
 
 ## What's Available
 

@@ -179,6 +179,48 @@ def test_plugin_gone_degrades_block_to_notice(sandbox_with_om):
     assert not any("om context" in call for call in sb.om_calls())
 
 
+def test_registry_unknown_schema_does_not_degrade(sandbox_with_om):
+    """A registry that parses but has an unexpected shape (plausible after any
+    grok upgrade) is 'cannot determine': the working block must refresh
+    normally, never be replaced with the removal notice."""
+    sb = sandbox_with_om
+    sb.agents_file.parent.mkdir(parents=True)
+    sb.agents_file.write_text(existing_block_file("old memory content"), encoding="utf-8")
+    sb.registry_file.parent.mkdir(parents=True)
+    sb.registry_file.write_text(json.dumps({"installed": ["some-other-plugin"]}), encoding="utf-8")
+    res = sb.run(SCRIPT)
+    assert res.returncode == 0
+    text = sb.agents_file.read_text(encoding="utf-8")
+    assert "Observational Memory plugin removed" not in text
+    assert "durable fact one" in text  # normal refresh happened
+
+
+def test_registry_without_confirmed_repo_shape_does_not_degrade(sandbox_with_om):
+    """`repos` present but no entry carries a `plugins` dict: schema not
+    positively confirmed -> no degrade."""
+    sb = sandbox_with_om
+    sb.agents_file.parent.mkdir(parents=True)
+    sb.agents_file.write_text(existing_block_file(), encoding="utf-8")
+    sb.registry_file.parent.mkdir(parents=True)
+    sb.registry_file.write_text(json.dumps({"repos": {"example/repo": {"version": 2}}}), encoding="utf-8")
+    assert sb.run(SCRIPT).returncode == 0
+    text = sb.agents_file.read_text(encoding="utf-8")
+    assert "Observational Memory plugin removed" not in text
+    assert "durable fact one" in text
+
+
+def test_registry_unparseable_does_not_degrade(sandbox_with_om):
+    sb = sandbox_with_om
+    sb.agents_file.parent.mkdir(parents=True)
+    sb.agents_file.write_text(existing_block_file(), encoding="utf-8")
+    sb.registry_file.parent.mkdir(parents=True)
+    sb.registry_file.write_text("{not json", encoding="utf-8")
+    assert sb.run(SCRIPT).returncode == 0
+    text = sb.agents_file.read_text(encoding="utf-8")
+    assert "Observational Memory plugin removed" not in text
+    assert "durable fact one" in text
+
+
 def test_registry_listing_plugin_refreshes_normally(sandbox_with_om):
     sb = sandbox_with_om
     sb.registry_file.parent.mkdir(parents=True)
@@ -188,6 +230,21 @@ def test_registry_listing_plugin_refreshes_normally(sandbox_with_om):
     )
     assert sb.run(SCRIPT).returncode == 0
     assert "durable fact one" in sb.agents_file.read_text(encoding="utf-8")
+
+
+def test_crlf_agents_file_user_content_preserved(sandbox_with_om):
+    """CRLF user content survives a refresh byte-for-byte (sentinel matching
+    strips the trailing \\r; surrogateescape round-trips the rest)."""
+    sb = sandbox_with_om
+    prefix = "# user heading\r\nline two\r\n"
+    original = prefix + f"{BLOCK_BEGIN}\r\nold\r\n{BLOCK_END}\r\n"
+    sb.agents_file.parent.mkdir(parents=True)
+    sb.agents_file.write_bytes(original.encode("utf-8"))
+    assert sb.run(SCRIPT).returncode == 0
+    raw = sb.agents_file.read_bytes().decode("utf-8")  # no newline translation
+    assert raw.startswith(prefix)
+    assert block_line_counts(raw) == (1, 1)
+    assert "durable fact one" in raw
 
 
 def test_om_context_invocation_has_no_cwd_or_task_flag():

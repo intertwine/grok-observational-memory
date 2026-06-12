@@ -68,23 +68,25 @@ def test_hooks_json_timeouts_match_spec():
 
 
 def test_plugin_version_matches_changelog_head():
-    changelog = REPO_ROOT / "CHANGELOG.md"
-    if not changelog.exists():
-        pytest.skip("CHANGELOG.md not present yet (docs task); lockstep check self-enables once it lands")
-    match = re.search(r"(\d+\.\d+\.\d+)", changelog.read_text(encoding="utf-8"))
+    match = re.search(r"(\d+\.\d+\.\d+)", (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8"))
     assert match, "CHANGELOG.md has no version-shaped head entry"
     assert match.group(1) == load(PLUGIN_JSON)["version"]
 
 
 def test_marketplace_description_length():
-    # TODO: docs task may add docs/marketplace-entry.json (catalog PR payload);
-    # until it exists this check self-skips.
-    entry = REPO_ROOT / "docs" / "marketplace-entry.json"
-    if not entry.exists():
-        pytest.skip("docs/marketplace-entry.json not present yet (docs task)")
-    data = load(entry)
+    data = load(REPO_ROOT / "docs" / "marketplace-entry.json")
     assert len(data["description"]) <= 120
     assert NAME_RE.match(data["name"])
+
+
+def test_marketplace_source_sha_pinned_or_placeholder():
+    """The catalog validator requires ^[0-9a-f]{40}$. The draft carries an
+    explicit placeholder that MUST be replaced with `git ls-remote <url> HEAD`
+    output at submission time — see docs/maintainers.md."""
+    sha = load(REPO_ROOT / "docs" / "marketplace-entry.json")["source"]["sha"]
+    assert re.fullmatch(r"[0-9a-f]{40}", sha) or sha == "TBD-pin-at-submission", (
+        f"source.sha {sha!r} is neither a 40-hex commit sha nor the documented placeholder"
+    )
 
 
 EXECUTABLE_SCRIPTS = ["run-hook", "context-refresh.sh", "checkpoint.sh", "setup.sh", "teardown.sh"]

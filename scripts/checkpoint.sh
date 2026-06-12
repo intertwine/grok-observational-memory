@@ -19,6 +19,13 @@ if [ "${OM_GROK_PLUGIN_DISABLE:-0}" = "1" ]; then
     exit 0
 fi
 
+# HOME guard BEFORE set -u / lib.sh (both expand $HOME): keep the exit-0
+# contract even in a hostile hook environment with HOME unset.
+if [ -z "${HOME:-}" ]; then
+    echo "observational-memory(grok): HOME is unset - checkpoint skipped" >&2
+    exit 0
+fi
+
 set -u
 
 SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd) || exit 0
@@ -66,10 +73,23 @@ fi
 # context-refresh.sh never sources this.
 ENV_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/observational-memory/env"
 if [ -f "$ENV_FILE" ]; then
-    set -a
+    # Probe in a throwaway subshell first: under `set -u` an env file that
+    # references an unset variable would abort THIS script with a raw shell
+    # error and exit 1 (fail-closed breach), and a stray `exit` would
+    # terminate it mid-flight. The probe must both survive sourcing AND
+    # reach the trailing printf, so env files that error OR exit (even
+    # `exit 0`) are rejected with a breadcrumb instead.
     # shellcheck disable=SC1090
-    . "$ENV_FILE"
-    set +a
+    if [ "$( (set +u && { . "$ENV_FILE"; } >/dev/null 2>&1 && printf ok) 2>/dev/null )" = "ok" ]; then
+        set +u
+        set -a
+        # shellcheck disable=SC1090
+        . "$ENV_FILE"
+        set +a
+        set -u
+    else
+        om_breadcrumb "provider env file failed to source - continuing without it"
+    fi
 fi
 
 if ! om_find; then
@@ -115,6 +135,10 @@ mkdir -p "$OM_GROK_STATE_DIR/checkpoint-last" 2>/dev/null || {
     rm -rf "$LOCK_PATH"
     exit 0
 }
+# NOTE: the throttle stamp is written BEFORE the background run on purpose —
+# there is no success signal without blocking the hook. If om fails, throttled
+# retries (UserPromptSubmit/PreCompact) are suppressed for up to
+# THROTTLE_SECONDS; SessionEnd always forces a fresh attempt.
 printf '%s' "$NOW" >"$STATE_FILE" 2>/dev/null || true
 
 # --- Run om grok-checkpoint in the background (async-safe) -------------------
@@ -124,6 +148,9 @@ printf '%s' "$NOW" >"$STATE_FILE" 2>/dev/null || true
 # otherwise om grok-checkpoint self-scans ~/.grok/sessions.
 (
     trap 'rm -rf "$LOCK_PATH"' EXIT
+    # EXIT traps do not fire on untrapped signals (dash/ash semantics);
+    # trap the realistic ones so a killed run still releases the lock.
+    trap 'rm -rf "$LOCK_PATH"; exit' INT TERM HUP
     if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
         "$OM_BIN" grok-checkpoint --transcript "$TRANSCRIPT"
     else

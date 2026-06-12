@@ -10,11 +10,12 @@ Hook scripts are POSIX sh and must stay shellcheck-clean:
 shellcheck scripts/*.sh scripts/run-hook
 python3 -m json.tool .grok-plugin/plugin.json >/dev/null
 python3 -m json.tool hooks/hooks.json >/dev/null
+python3 -m json.tool docs/marketplace-entry.json >/dev/null
 ```
 
 Ground rules for changes:
 
-- Fail closed: hook-path scripts always exit 0, breadcrumb once to stderr, and never print memory content.
+- Fail closed: hook-path scripts always exit 0, emit only one-line breadcrumbs to stderr (at most one failure breadcrumb per run, plus any sync-exposure warnings), and never print memory content.
 - The kill switch (`OM_GROK_PLUGIN_DISABLE=1`) stays the first check in every script.
 - Never test against a real `~/.grok` or `~/.local/state` — use a fake `HOME` in a temp dir.
 - This plugin wraps the `om` CLI; memory logic belongs in [observational-memory](https://github.com/intertwine/observational-memory), not here.

@@ -8,26 +8,22 @@ The plugin wraps the `om` CLI ([observational-memory](https://github.com/intertw
 
 ## Requirements
 
-- Grok Build (`grok` CLI), tested against 0.2.50.
+- Grok Build (`grok` CLI). Designed and verified against the 0.2.50 runtime behavior (context channels, hook execution, and registry shape were live-probed on 0.2.50).
 - `observational-memory>=0.8,<0.9` (`om` on your PATH). Install with `uv tool install observational-memory` or `pipx install observational-memory`.
 - `python3` (already present wherever `om` runs).
 - macOS or Linux. Windows works through WSL.
 
 ## Install
 
-From the marketplace, once accepted:
-
-```sh
-grok plugin install observational-memory
-```
-
-Today, install straight from the repo:
+Install from the repo:
 
 ```sh
 grok plugin install intertwine/grok-observational-memory --trust
 ```
 
 `--trust` is required: hooks only run from trusted plugins.
+
+The CLI installer takes a Git URL, GitHub shorthand (`user/repo`), or local path — not a bare plugin name. Once the plugin is accepted into the marketplace, you can also install it from the marketplace tab inside the Grok TUI (`Ctrl+L`).
 
 ## First Run
 
@@ -140,6 +136,7 @@ Teardown never touches `om` itself, your memory data, or om-core's native hook f
 
 - [docs/how-it-works.md](docs/how-it-works.md) — context channels, the one-session lag, fail-closed contract, privacy.
 - [docs/troubleshooting.md](docs/troubleshooting.md) — dangling hooks, stale blocks, locks, kill switch.
+- [docs/maintainers.md](docs/maintainers.md) — pre-submission live checklist, marketplace sha pinning.
 - [CHANGELOG.md](CHANGELOG.md)
 
 ## License

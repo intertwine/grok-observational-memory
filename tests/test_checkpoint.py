@@ -75,6 +75,62 @@ def test_session_end_forces_despite_throttle(sandbox_with_om):
     assert wait_until(lambda: len(sb.om_calls()) == 2)
 
 
+def env_file(sb, content: str):
+    path = sb.home / ".config" / "observational-memory" / "env"
+    path.parent.mkdir(parents=True)
+    path.write_text(content, encoding="utf-8")
+    return path
+
+
+def test_env_file_with_unset_variable_reference_fails_closed(sandbox_with_om):
+    """An env file referencing an unset variable must never abort the script
+    (set -u would turn it into a raw 'unbound variable' error + exit 1)."""
+    sb = sandbox_with_om
+    env_file(sb, "EXPORTED_THING=$NOT_SET_ANYWHERE\n")
+    res = sb.run(SCRIPT, stdin=envelope("session_end"), env_extra={"GROK_SESSION_ID": SESSION})
+    assert res.returncode == 0
+    assert "unbound variable" not in res.stderr
+    assert wait_until(lambda: sb.om_calls() == ["om grok-checkpoint"])
+
+
+def test_env_file_that_exits_is_rejected_with_breadcrumb(sandbox_with_om):
+    """A stray `exit` in the env file must not terminate the sourcing script:
+    the subshell probe rejects it and the checkpoint continues without it."""
+    sb = sandbox_with_om
+    env_file(sb, "SOME_KEY=value\nexit 0\n")
+    res = sb.run(SCRIPT, stdin=envelope("session_end"), env_extra={"GROK_SESSION_ID": SESSION})
+    assert res.returncode == 0
+    assert "provider env file failed to source" in res.stderr
+    assert wait_until(lambda: sb.om_calls() == ["om grok-checkpoint"])
+
+
+def test_env_file_that_errors_is_rejected_with_breadcrumb(sandbox_with_om):
+    sb = sandbox_with_om
+    env_file(sb, "this is ( not valid sh\n")
+    res = sb.run(SCRIPT, stdin=envelope("session_end"), env_extra={"GROK_SESSION_ID": SESSION})
+    assert res.returncode == 0
+    assert "provider env file failed to source" in res.stderr
+    assert wait_until(lambda: sb.om_calls() == ["om grok-checkpoint"])
+
+
+def test_env_file_exports_reach_om(sandbox):
+    """Healthy env files are still sourced with set -a: values must reach om."""
+    sb = sandbox
+    stub = sb.bin / "om"
+    stub.write_text(
+        f"""#!/bin/sh
+printf '%s\\n' "om $* key=${{OM_TEST_PROVIDER_VALUE:-unset}}" >> "{sb.om_log}"
+exit 0
+""",
+        encoding="utf-8",
+    )
+    stub.chmod(0o755)
+    env_file(sb, "OM_TEST_PROVIDER_VALUE=hello\n")
+    res = sb.run(SCRIPT, stdin=envelope("session_end"), env_extra={"GROK_SESSION_ID": SESSION})
+    assert res.returncode == 0
+    assert wait_until(lambda: sb.om_calls() == ["om grok-checkpoint key=hello"])
+
+
 def native_hook_file(events: list[str]) -> dict:
     return {"hooks": {event: [{"hooks": [{"type": "command", "command": "om grok-checkpoint"}]}] for event in events}}
 
