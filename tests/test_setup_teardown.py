@@ -10,7 +10,7 @@ import subprocess
 import pytest
 from conftest import BLOCK_BEGIN, BLOCK_END, SYSTEM_PATH
 
-GUARD_RE = re.compile(r"^if \[ -x (?P<p1>\S+) \]; then exec (?P<p2>\S+); fi; exit 0$")
+GUARD_RE = re.compile(r"^if \[ -x (?P<p1>\S+) \]; then exec (?P<p2>\S+)(?P<args>(?: \S+)*); fi; exit 0$")
 BIN_SCRIPTS = ["lib.sh", "context-refresh.sh", "checkpoint.sh", "teardown.sh"]
 
 
@@ -63,12 +63,19 @@ def test_setup_bakes_absolute_self_guarding_commands(sandbox_with_om):
                 assert match["p1"] == match["p2"]
                 assert os.path.isabs(match["p1"])
                 assert match["p1"].startswith(bin_dir + "/")
-                seen.setdefault(event, []).append((os.path.basename(match["p1"]), hook["timeout"]))
+                seen.setdefault(event, []).append(
+                    (os.path.basename(match["p1"]), hook["timeout"], match["args"].strip())
+                )
 
-    assert seen["SessionStart"] == [("context-refresh.sh", 15)]
-    assert seen["SessionEnd"] == [("context-refresh.sh", 15), ("checkpoint.sh", 30)]
-    assert seen["UserPromptSubmit"] == [("checkpoint.sh", 30)]
-    assert seen["PreCompact"] == [("checkpoint.sh", 30)]
+    assert seen["SessionStart"] == [("context-refresh.sh", 15, "")]
+    assert seen["SessionEnd"] == [("context-refresh.sh", 15, ""), ("checkpoint.sh", 30, "")]
+    # throttled refresh on every prompt: headless sessions never deliver
+    # SessionEnd (live finding on 0.2.50), so this is the convergence fallback
+    assert seen["UserPromptSubmit"] == [
+        ("context-refresh.sh", 15, "--throttle 900"),
+        ("checkpoint.sh", 30, ""),
+    ]
+    assert seen["PreCompact"] == [("checkpoint.sh", 30, "")]
 
 
 def test_setup_idempotent_rerun_converges(sandbox_with_om):

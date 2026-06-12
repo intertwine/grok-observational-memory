@@ -125,3 +125,22 @@ def test_dispatches_when_user_file_lacks_event(sandbox, tmp_path):
     )
     assert res.returncode == 0
     assert marker.exists()
+
+
+def test_forwards_extra_arguments_to_target(sandbox, tmp_path):
+    consent_marker(sandbox)
+    plugin_root = tmp_path / "plugin-root"
+    (plugin_root / "scripts").mkdir(parents=True)
+    argfile = tmp_path / "args"
+    target = plugin_root / "scripts" / "context-refresh.sh"
+    target.write_text(f'#!/bin/sh\necho "$@" > "{argfile}"\n', encoding="utf-8")
+    target.chmod(0o755)
+    res = sandbox.run(
+        "run-hook",
+        "context-refresh",
+        "--throttle",
+        "900",
+        env_extra={"GROK_PLUGIN_ROOT": str(plugin_root), "GROK_HOOK_EVENT": "user_prompt_submit"},
+    )
+    assert res.returncode == 0
+    assert argfile.read_text(encoding="utf-8").strip() == "--throttle 900"

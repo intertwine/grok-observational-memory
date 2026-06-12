@@ -52,7 +52,7 @@ Nothing is wired until you run `/om-setup`. Remove everything with `/om-teardown
 | Command | `/recall` | `om recall` over your memory: `/recall <query>`. |
 | Command | `/memory-status` | Wiring health: hook file, block freshness, native-hook drift, `om status` and `om doctor` summary. |
 | Skill | `observational-memory` | Teaches Grok when and how to recall memory (`om recall`, `om search`, recall handles). |
-| Hooks | `SessionStart`, `SessionEnd` | Refresh the managed context block in `~/.grok/AGENTS.md` from bounded `om context`. |
+| Hooks | `SessionStart`, `SessionEnd`, `UserPromptSubmit` (15-min throttle) | Refresh the managed context block in `~/.grok/AGENTS.md` from bounded `om context`. |
 | Hooks | `SessionEnd`, `UserPromptSubmit`, `PreCompact` | Throttled `om grok-checkpoint` so sessions get observed. |
 
 ## How Context Injection Works on Grok
@@ -70,7 +70,7 @@ Contains personal memory derived from your sessions — do not commit or sync th
 
 Everything outside the sentinels is yours and is preserved byte-for-byte.
 
-Honest caveat: Grok reads `AGENTS.md` before SessionStart hooks run. So the context a session sees is the block as of the previous refresh — a one-session lag. SessionEnd also refreshes the block, so in practice each session starts with memory "as of the last session end." Details in [docs/how-it-works.md](docs/how-it-works.md).
+Honest caveat: Grok reads `AGENTS.md` before SessionStart hooks run. So the context a session sees is the block as of the previous refresh — a one-session lag. The block is re-refreshed at session end and on a 15-minute throttle while you work, so in practice each session starts with memory from your previous session. Details in [docs/how-it-works.md](docs/how-it-works.md).
 
 ## vs Grok Native Memory
 

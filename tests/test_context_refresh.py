@@ -259,3 +259,43 @@ def test_om_context_invocation_has_no_cwd_or_task_flag():
     for line in invocations:
         assert "--cwd" not in line
         assert "--task" not in line
+
+
+def test_throttle_skips_when_recent_refresh(sandbox_with_om):
+    sb = sandbox_with_om
+    assert sb.run(SCRIPT).returncode == 0
+    first = sb.agents_file.read_text(encoding="utf-8")
+    calls_before = len(sb.om_calls())
+    res = sb.run(SCRIPT, "--throttle", "900")
+    assert res.returncode == 0
+    # within the throttle window: om not invoked, file untouched
+    assert len(sb.om_calls()) == calls_before
+    assert sb.agents_file.read_text(encoding="utf-8") == first
+
+
+def test_throttle_runs_when_stamp_stale(sandbox_with_om):
+    sb = sandbox_with_om
+    assert sb.run(SCRIPT).returncode == 0
+    stamp = sb.state_dir / "last-context-refresh"
+    assert stamp.is_file()
+    stamp.write_text("0", encoding="utf-8")  # epoch 0 = long stale
+    calls_before = len(sb.om_calls())
+    assert sb.run(SCRIPT, "--throttle", "900").returncode == 0
+    assert len(sb.om_calls()) > calls_before
+
+
+def test_throttle_runs_when_stamp_missing(sandbox_with_om):
+    sb = sandbox_with_om
+    res = sb.run(SCRIPT, "--throttle", "900")
+    assert res.returncode == 0
+    # no prior stamp: refresh proceeds and creates the block
+    assert sb.agents_file.is_file()
+    assert (sb.state_dir / "last-context-refresh").is_file()
+
+
+def test_throttle_invalid_value_fails_closed(sandbox_with_om):
+    sb = sandbox_with_om
+    res = sb.run(SCRIPT, "--throttle", "bogus")
+    assert res.returncode == 0
+    assert not sb.agents_file.exists()
+    assert len(sb.om_calls()) == 0

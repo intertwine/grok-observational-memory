@@ -16,11 +16,16 @@
 # Deliberately cwd-agnostic: NO --cwd/--task flags. A global file gets
 # global context; project routing comes from /recall and the skill.
 #
-# Usage: context-refresh.sh [--init]
+# Usage: context-refresh.sh [--init] [--throttle SECONDS]
 #   --init  allow creating the managed block in an existing AGENTS.md that
 #           has none yet (setup.sh's initial write). Normal refreshes fail
 #           closed instead, so a user who deleted the block stays opted out
 #           until they re-run /om-setup.
+#   --throttle SECONDS  skip the refresh when the last successful refresh is
+#           newer than SECONDS. Used for the UserPromptSubmit registration:
+#           headless sessions never deliver SessionEnd (observed on 0.2.50),
+#           so a throttled per-prompt refresh is the convergence fallback —
+#           without flooding `om context` on every turn.
 
 # Kill switch FIRST — gates everything.
 if [ "${OM_GROK_PLUGIN_DISABLE:-0}" = "1" ]; then
@@ -41,13 +46,45 @@ SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd) || exit 0
 . "$SCRIPT_DIR/lib.sh"
 
 INIT_MODE=0
-if [ "${1:-}" = "--init" ]; then
-    INIT_MODE=1
-fi
+THROTTLE_SECONDS=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --init) INIT_MODE=1 ;;
+        --throttle)
+            shift
+            case "${1:-}" in
+                ''|*[!0-9]*)
+                    om_breadcrumb "invalid --throttle value - context refresh skipped"
+                    exit 0
+                    ;;
+                *) THROTTLE_SECONDS=$1 ;;
+            esac
+            ;;
+        *)
+            om_breadcrumb "unknown argument '$1' - context refresh skipped"
+            exit 0
+            ;;
+    esac
+    shift
+done
 
 if ! command -v python3 >/dev/null 2>&1; then
     om_breadcrumb "python3 unavailable - context refresh skipped"
     exit 0
+fi
+
+# Throttle: compare against the epoch stamp written after each successful
+# refresh. Missing/unreadable stamp means "never refreshed" -> run.
+REFRESH_STAMP_FILE="$OM_GROK_STATE_DIR/last-context-refresh"
+if [ "$THROTTLE_SECONDS" -gt 0 ] && [ -f "$REFRESH_STAMP_FILE" ]; then
+    LAST_REFRESH=$(cat "$REFRESH_STAMP_FILE" 2>/dev/null || echo 0)
+    NOW_EPOCH=$(date +%s)
+    case "$LAST_REFRESH" in
+        *[!0-9]*|'') LAST_REFRESH=0 ;;
+    esac
+    if [ $((NOW_EPOCH - LAST_REFRESH)) -lt "$THROTTLE_SECONDS" ]; then
+        exit 0
+    fi
 fi
 
 # --- "Plugin gone" degrade -------------------------------------------------
@@ -292,6 +329,7 @@ case "$STATUS" in
         # no privilege boundary is crossed; the next refresh warns.
         if mv -f "$TMP_FILE" "$REAL_TARGET" 2>/dev/null; then
             TMP_FILE=""
+            date +%s > "$REFRESH_STAMP_FILE" 2>/dev/null || :
         else
             om_breadcrumb "atomic rename failed - AGENTS.md left untouched"
         fi

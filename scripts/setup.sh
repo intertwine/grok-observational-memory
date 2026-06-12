@@ -208,10 +208,14 @@ echo "Installed hook scripts in $BIN_DIR"
 # --- 6. Write the user-level hook file ------------------------------------------
 # Commands are self-guarding: if the baked script disappears (state dir
 # wiped), the command degrades to a silent exit 0 instead of a hook error.
-# Event policy (binding spec):
+# Event policy (binding spec + live finding):
 #   SessionStart  -> context-refresh (async, 15s) — always ours
 #   SessionEnd    -> context-refresh (async, 15s) + checkpoint (async, 30s)
-#   UserPromptSubmit, PreCompact -> checkpoint (async, 30s)
+#   UserPromptSubmit -> context-refresh --throttle 900 (async, 15s) + checkpoint (async, 30s)
+#   PreCompact    -> checkpoint (async, 30s)
+# The throttled UserPromptSubmit refresh exists because headless sessions
+# never deliver SessionEnd (observed live on 0.2.50); it keeps the block
+# converging during long sessions without running `om context` every turn.
 # checkpoint.sh dedups at runtime against the native om hook file.
 python3 - "$OM_GROK_HOOK_FILE" "$BIN_DIR/context-refresh.sh" "$BIN_DIR/checkpoint.sh" <<'PY'
 import json
@@ -222,15 +226,16 @@ import sys
 hook_file, ctx, ckp = sys.argv[1:4]
 
 
-def guard(path):
+def guard(path, *args):
     quoted = shlex.quote(path)
-    return "if [ -x %s ]; then exec %s; fi; exit 0" % (quoted, quoted)
+    invocation = " ".join([quoted] + [shlex.quote(a) for a in args])
+    return "if [ -x %s ]; then exec %s; fi; exit 0" % (quoted, invocation)
 
 
-def handler(path, timeout, status):
+def handler(path, timeout, status, *args):
     return {
         "type": "command",
-        "command": guard(path),
+        "command": guard(path, *args),
         "timeout": timeout,
         "async": True,
         "statusMessage": status,
@@ -244,7 +249,9 @@ payload = {
     "hooks": {
         "SessionStart": [{"hooks": [handler(ctx, 15, CTX_STATUS)]}],
         "SessionEnd": [{"hooks": [handler(ctx, 15, CTX_STATUS), handler(ckp, 30, CKP_STATUS)]}],
-        "UserPromptSubmit": [{"hooks": [handler(ckp, 30, CKP_STATUS)]}],
+        "UserPromptSubmit": [
+            {"hooks": [handler(ctx, 15, CTX_STATUS, "--throttle", "900"), handler(ckp, 30, CKP_STATUS)]}
+        ],
         "PreCompact": [{"hooks": [handler(ckp, 30, CKP_STATUS)]}],
     }
 }

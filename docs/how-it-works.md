@@ -21,17 +21,22 @@ session N starts
   1. grok reads ~/.grok/AGENTS.md          <- sees the block from session N-1
   2. grok fires SessionStart hooks
        -> context-refresh.sh rewrites the block (fresh, but session N already read it)
-  ... session N runs; throttled checkpoints observe it ...
+  ... session N runs ...
+       -> every prompt: throttled checkpoints observe the session,
+          and context-refresh.sh --throttle 900 re-rewrites the block
+          at most every 15 minutes
 session N ends
-  3. grok fires SessionEnd hooks
+  3. grok fires SessionEnd hooks (when delivered; see below)
        -> context-refresh.sh rewrites the block again
        -> checkpoint.sh runs om grok-checkpoint
 
 session N+1 starts
-  1. grok reads ~/.grok/AGENTS.md          <- sees memory "as of session N's end"
+  1. grok reads ~/.grok/AGENTS.md          <- sees memory "as of session N"
 ```
 
-The lag is one session, by design and unavoidable on 0.2.50. Refreshing at both SessionStart and SessionEnd keeps the worst case small: every session starts with memory as of the previous session's end.
+The lag is one session, by design and unavoidable on 0.2.50. Refreshing at SessionStart, on a 15-minute throttle during the session, and at SessionEnd keeps the worst case small.
+
+One honest wrinkle, found in live testing: headless sessions (`grok -p`) never deliver SessionEnd to user-level hooks on 0.2.50. That is exactly why the throttled per-prompt refresh exists — even if SessionEnd never fires, the block still converges while you work.
 
 ## The managed block, hardened
 

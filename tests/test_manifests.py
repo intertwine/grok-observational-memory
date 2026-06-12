@@ -13,7 +13,10 @@ PLUGIN_JSON = REPO_ROOT / ".grok-plugin" / "plugin.json"
 HOOKS_JSON = REPO_ROOT / "hooks" / "hooks.json"
 NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 HOOK_EVENTS = {"SessionStart", "SessionEnd", "UserPromptSubmit", "PreCompact"}
-COMMAND_RE = re.compile(r'^"\$\{GROK_PLUGIN_ROOT\}/scripts/run-hook" (context-refresh|checkpoint)$')
+COMMAND_RE = re.compile(
+    r'^"\$\{GROK_PLUGIN_ROOT\}/scripts/run-hook" (context-refresh|checkpoint)'
+    r"( --throttle [0-9]+)?$"
+)
 
 
 def load(path):

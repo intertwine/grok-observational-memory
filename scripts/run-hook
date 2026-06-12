@@ -8,7 +8,8 @@
 # double-firing: when the user-level file registers the same event, the
 # user-level wiring owns it and we exit 0 deterministically.
 #
-# Usage (from hooks.json): run-hook <context-refresh|checkpoint>
+# Usage (from hooks.json): run-hook <context-refresh|checkpoint> [args...]
+# Extra args are forwarded to the target script (e.g. --throttle 900).
 # Always exits 0; never prints memory content.
 
 # Kill switch FIRST — gates everything.
@@ -32,6 +33,7 @@ case "$SCRIPT_NAME" in
     context-refresh | checkpoint) ;;
     *) exit 0 ;;
 esac
+shift
 
 # Only meaningful when invoked through the plugin hooks adapter, which
 # injects GROK_PLUGIN_ROOT. Outside it we cannot locate our scripts: exit 0.
@@ -84,6 +86,6 @@ fi
 
 TARGET="$PLUGIN_ROOT/scripts/$SCRIPT_NAME.sh"
 if [ -x "$TARGET" ]; then
-    exec "$TARGET"
+    exec "$TARGET" "$@"
 fi
 exit 0
