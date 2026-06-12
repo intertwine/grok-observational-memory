@@ -107,7 +107,15 @@ if [ -n "$SYNC_REASON" ] && [ "$ACK_SYNC" != "1" ]; then
 fi
 
 # --- 3. Native om wiring -------------------------------------------------------
-if ! "$OM_BIN" install --grok; then
+# Without a TTY, `om install` cannot prompt (e.g. for a provider profile);
+# pass --non-interactive so it uses existing config or fails loudly instead
+# of dying on a prompt it cannot show.
+OM_INSTALL_TTY_FLAG=""
+if [ ! -t 0 ]; then
+    OM_INSTALL_TTY_FLAG="--non-interactive"
+fi
+# shellcheck disable=SC2086  # intentional word splitting of the optional flag
+if ! "$OM_BIN" install --grok $OM_INSTALL_TTY_FLAG; then
     echo "error: 'om install --grok' failed - run 'om doctor' and retry." >&2
     exit 1
 fi

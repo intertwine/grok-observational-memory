@@ -27,8 +27,9 @@ def test_setup_wires_everything(sandbox_with_om):
     res = run_setup(sb)
     assert res.returncode == 0, res.stderr
 
-    # native om wiring requested
-    assert "om install --grok" in sb.om_calls()
+    # native om wiring requested; tests run without a TTY, so setup must add
+    # --non-interactive (om install prompts for a provider profile otherwise)
+    assert "om install --grok --non-interactive" in sb.om_calls()
     # scripts copied to the stable bin dir, executable
     for name in BIN_SCRIPTS:
         path = sb.state_dir / "bin" / name
