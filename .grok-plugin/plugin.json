@@ -1,6 +1,6 @@
 {
   "name": "observational-memory",
-  "version": "0.9.0",
+  "version": "0.1.0",
   "description": "Observational memory for Grok Build: observes sessions, reflects durable facts, recalls them in every session.",
   "author": {
     "name": "Intertwine Systems",

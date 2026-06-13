@@ -76,7 +76,7 @@ The plugin ships `hooks/hooks.json` registering the same events through `scripts
 
 The plugin-delivered hooks exist for the day xAI wires the plugin hooks adapter. When that happens, `run-hook` prevents double-firing deterministically: if `GROK_PLUGIN_ROOT` is set and the user-level hook file registers the same event, the user-level wiring owns it and `run-hook` exits 0. If the event cannot be determined but the user-level file exists, it suppresses conservatively rather than risk a double fire.
 
-This is also why the plugin version is 0.9.0: 1.0.0 is reserved for when the plugin hooks adapter goes live and the forward-compat layer is validated against it.
+This is also why the plugin is an early (0.x) release: the forward-compat layer can't be exercised until that adapter lands, so the surface may still change. The version reflects the plugin's own maturity, not whether the marketplace submission has been accepted. A 1.0.0 will follow once the surface is stable and proven in real use.
 
 ## Stable paths: surviving `grok plugin update`
 
