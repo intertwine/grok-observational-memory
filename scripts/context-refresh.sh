@@ -162,7 +162,7 @@ ENV_TMP=""
 TMP_FILE=""
 LOCK_OWNED=0
 LOCK_PATH="$OM_GROK_STATE_DIR/locks/agents-refresh.lock"
-# shellcheck disable=SC2329  # invoked indirectly via the EXIT trap
+# shellcheck disable=SC2317,SC2329  # invoked indirectly via the traps
 cleanup() {
     if [ -n "$ENV_TMP" ]; then rm -f "$ENV_TMP"; fi
     if [ -n "$TMP_FILE" ]; then rm -f "$TMP_FILE"; fi
