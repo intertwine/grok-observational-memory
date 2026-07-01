@@ -104,7 +104,7 @@ class Sandbox:
     def write_om_stub(
         self,
         context: str = DEFAULT_CONTEXT,
-        version: str = "om, version 0.8.0",
+        version: str = "om, version 0.9.0",
         raw_context_output: str | None = None,
     ) -> Path:
         """Install a fake `om` on the sandbox PATH.

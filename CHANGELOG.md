@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1 - 2026-07-01
+
+- Update the supported `observational-memory` range to `>=0.9,<0.10` for the OM v0.9.0 release line.
+- Refresh docs to include OpenCode and Kimi Code CLI in the shared OM host set.
+
 ## 0.1.0 — 2026-06-13
 
 Initial release.
