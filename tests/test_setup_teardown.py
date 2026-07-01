@@ -107,13 +107,13 @@ def test_setup_strips_native_session_start_only(sandbox_with_om):
     assert "SessionEnd" in native["hooks"]
 
 
-@pytest.mark.parametrize("version", ["om, version 0.7.9", "om, version 0.9.0", "om, version 1.2.0"])
+@pytest.mark.parametrize("version", ["om, version 0.8.9", "om, version 0.10.0", "om, version 1.2.0"])
 def test_setup_rejects_om_outside_version_floor(sandbox, version):
     sb = sandbox
     sb.write_om_stub(version=version)
     res = run_setup(sb)
     assert res.returncode != 0
-    assert ">=0.8,<0.9" in res.stderr
+    assert ">=0.9,<0.10" in res.stderr
     assert not sb.hook_file.exists()
 
 

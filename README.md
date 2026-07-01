@@ -2,14 +2,14 @@
 
 First-class Observational Memory for Grok Build.
 
-This plugin gives the `grok` CLI persistent, user-level memory. It observes your sessions, reflects durable facts, and feeds compact startup context back into every new session. It is the Grok analog of `intertwine/hermes-observational-memory` and shares the same local-first memory store used by Claude Code, Codex, Cowork, and Hermes.
+This plugin gives the `grok` CLI persistent, user-level memory. It observes your sessions, reflects durable facts, and feeds compact startup context back into every new session. It is the Grok analog of `intertwine/hermes-observational-memory` and shares the same local-first memory store used by Claude Code, Codex, OpenCode, Kimi Code CLI, Cowork, and Hermes.
 
 The plugin wraps the `om` CLI ([observational-memory](https://github.com/intertwine/observational-memory)). It never reimplements memory logic.
 
 ## Requirements
 
 - Grok Build (`grok` CLI). Designed and verified against the 0.2.50 runtime behavior (context channels, hook execution, and registry shape were live-probed on 0.2.50).
-- `observational-memory>=0.8,<0.9` (`om` on your PATH). Install with `uv tool install observational-memory` or `pipx install observational-memory`.
+- `observational-memory>=0.9,<0.10` (`om` on your PATH). Install with `uv tool install observational-memory` or `pipx install observational-memory`.
 - `python3` (already present wherever `om` runs).
 - macOS or Linux. Windows works through WSL.
 
@@ -35,7 +35,7 @@ Inside a Grok session, run:
 
 Setup is consent-gated and idempotent. It walks through:
 
-1. Check that `om` is on your PATH and inside the supported version range (`>=0.8,<0.9`).
+1. Check that `om` is on your PATH and inside the supported version range (`>=0.9,<0.10`).
 2. Ask you to acknowledge a sync risk if `~/.grok/AGENTS.md` is a symlink or `~/.grok` sits inside a git work tree (memory must not leave this host).
 3. Run `om install --grok` for native checkpoint wiring.
 4. Copy hook scripts to `~/.local/state/grok-observational-memory/bin/` and write the user-level hook file `~/.grok/hooks/grok-observational-memory.json`.
@@ -76,7 +76,7 @@ Honest caveat: Grok reads `AGENTS.md` before SessionStart hooks run. So the cont
 
 Grok Build has its own memory features. Observational Memory does not replace, wrap, or read them — it is an independent peer. `om status` and `om doctor` treat Grok native memory as just another thing on the host, not something to manage. Run both if you like; they do not interfere with each other.
 
-What OM adds on top: one shared, inspectable, local-first memory store across all your agents (Claude Code, Codex, Grok, Cowork, Hermes), plain Markdown you can read and audit, and explicit recall (`/recall`, `om search`).
+What OM adds on top: one shared, inspectable, local-first memory store across all your agents (Claude Code, Codex, OpenCode, Kimi, Grok, Cowork, Hermes), plain Markdown you can read and audit, and explicit recall (`/recall`, `om search`).
 
 ## Configuration
 
