@@ -17,7 +17,7 @@ when-to-use: >
 
 You have access to a persistent memory system that compresses conversation
 transcripts into observations and reflections shared across sessions. It
-requires the `om` CLI (observational-memory `>=0.9,<0.10`) on PATH.
+requires the `om` CLI (observational-memory `>=0.10,<0.11`) on PATH.
 
 ## What's Available
 

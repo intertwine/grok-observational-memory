@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2 - 2026-08-03
+
+- Accept the Observational Memory v0.10 release line (`>=0.10,<0.11`).
+- Keep the existing Grok setup and hook behavior unchanged while OM adds the optional native-memory bridge.
+
 ## 0.1.1 - 2026-07-01
 
 - Update the supported `observational-memory` range to `>=0.9,<0.10` for the OM v0.9.0 release line.
