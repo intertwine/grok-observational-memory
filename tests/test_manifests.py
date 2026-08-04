@@ -29,7 +29,7 @@ def test_plugin_json_valid_and_schema_fields():
     assert NAME_RE.match(data["name"]), data["name"]
     assert data["name"] == "observational-memory"
     assert re.match(r"^\d+\.\d+\.\d+$", data["version"])
-    assert data["version"] == "0.1.1"
+    assert data["version"] == "0.1.2"
     assert data["license"] == "MIT"
     assert data["author"]["name"] == "Intertwine Systems"
     assert isinstance(data["description"], str)

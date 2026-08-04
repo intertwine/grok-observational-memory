@@ -18,7 +18,7 @@ user's behalf.
    command -v om && om --version
    ```
 
-   - **If found**: confirm the version is `>=0.9,<0.10` (setup.sh re-verifies).
+   - **If found**: confirm the version is `>=0.10,<0.11` (setup.sh re-verifies).
    - **If NOT found**: STOP. Do not install anything automatically. Explain
      the two supported options and let the user choose and run one themselves
      (or ask you to run their chosen one):

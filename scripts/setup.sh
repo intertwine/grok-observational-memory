@@ -6,7 +6,7 @@
 # (override non-interactively with --ack-sync-risk).
 #
 # What it does (idempotent — re-runs converge):
-#   1. verify om on PATH and within the supported version range >=0.9,<0.10
+#   1. verify om on PATH and within the supported version range >=0.10,<0.11
 #   2. sync-exposure acknowledgment for ~/.grok/AGENTS.md
 #   3. run `om install --grok` (native checkpoint wiring)
 #   4. strip SessionStart from om-core's NATIVE hook file (no-op on Grok)
@@ -68,9 +68,9 @@ match = re.search(r"(\d+)\.(\d+)(?:\.(\d+))?", sys.stdin.read())
 if not match:
     sys.exit(1)
 version = (int(match.group(1)), int(match.group(2)))
-sys.exit(0 if (0, 9) <= version < (0, 10) else 1)
+sys.exit(0 if (0, 10) <= version < (0, 11) else 1)
 '; then
-    echo "error: om version '${OM_VERSION_RAW:-unknown}' is outside the supported range >=0.9,<0.10." >&2
+    echo "error: om version '${OM_VERSION_RAW:-unknown}' is outside the supported range >=0.10,<0.11." >&2
     echo "Upgrade/downgrade observational-memory, then re-run /om-setup." >&2
     exit 1
 fi

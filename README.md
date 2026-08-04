@@ -9,7 +9,7 @@ The plugin wraps the `om` CLI ([observational-memory](https://github.com/intertw
 ## Requirements
 
 - Grok Build (`grok` CLI). Designed and verified against the 0.2.50 runtime behavior (context channels, hook execution, and registry shape were live-probed on 0.2.50).
-- `observational-memory>=0.9,<0.10` (`om` on your PATH). Install with `uv tool install observational-memory` or `pipx install observational-memory`.
+- `observational-memory>=0.10,<0.11` (`om` on your PATH). Install with `uv tool install observational-memory` or `pipx install observational-memory`.
 - `python3` (already present wherever `om` runs).
 - macOS or Linux. Windows works through WSL.
 
@@ -35,7 +35,7 @@ Inside a Grok session, run:
 
 Setup is consent-gated and idempotent. It walks through:
 
-1. Check that `om` is on your PATH and inside the supported version range (`>=0.9,<0.10`).
+1. Check that `om` is on your PATH and inside the supported version range (`>=0.10,<0.11`).
 2. Ask you to acknowledge a sync risk if `~/.grok/AGENTS.md` is a symlink or `~/.grok` sits inside a git work tree (memory must not leave this host).
 3. Run `om install --grok` for native checkpoint wiring.
 4. Copy hook scripts to `~/.local/state/grok-observational-memory/bin/` and write the user-level hook file `~/.grok/hooks/grok-observational-memory.json`.

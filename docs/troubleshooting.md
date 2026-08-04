@@ -61,7 +61,7 @@ Hooks run with a minimal environment. The scripts look for `om` on PATH and then
 uv tool install observational-memory
 ```
 
-Setup also enforces the version floor `>=0.9,<0.10` and refuses anything outside it.
+Setup also enforces the supported range `>=0.10,<0.11` and refuses anything outside it.
 
 ## Checkpoints seem to never run
 
