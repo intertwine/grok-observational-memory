@@ -1,7 +1,7 @@
 {
   "name": "observational-memory",
-  "version": "0.1.2",
-  "description": "Observational memory for Grok Build: observes sessions, reflects durable facts, recalls them in every session.",
+  "version": "0.1.3",
+  "description": "Unmaintained legacy memory plugin. Prefer native memory; see the migration guide.",
   "author": {
     "name": "Intertwine Systems",
     "url": "https://github.com/intertwine"

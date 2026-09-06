@@ -1,5 +1,9 @@
 # Maintainers
 
+This plugin is unmaintained as of September 5, 2026. The submission checklist
+below is historical, not a new marketplace submission plan. No compatibility or
+security updates are promised. See the README retirement notice and uninstall guide.
+
 Internal checklists. Users never need this page.
 
 ## Pre-submission live checklist (spec F)

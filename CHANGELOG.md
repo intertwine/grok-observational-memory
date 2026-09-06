@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3 - 2026-09-05
+
+- Final unmaintained legacy release with retirement and migration notices.
+- Retain the OM 0.10 family and existing opt-in runtime behavior; no automatic
+  shutdown of other users' installations and no future compatibility promises.
+
 ## 0.1.2 - 2026-08-03
 
 - Accept the Observational Memory v0.10 release line (`>=0.10,<0.11`).

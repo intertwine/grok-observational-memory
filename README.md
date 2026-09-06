@@ -1,5 +1,11 @@
 # Grok Observational Memory
 
+> **Unmaintained legacy software — September 5, 2026.** Final plugin release:
+> **0.1.3**. No feature, compatibility or security updates are promised.
+> Prefer native agent memory. Preserve your archive, follow [Uninstall](#uninstall),
+> and read the [core migration guide](https://github.com/intertwine/observational-memory/blob/main/docs/legacy-migration.md).
+> Setup instructions below are historical, not a recommendation for new installs.
+
 First-class Observational Memory for Grok Build.
 
 This plugin gives the `grok` CLI persistent, user-level memory. It observes your sessions, reflects durable facts, and feeds compact startup context back into every new session. It is the Grok analog of `intertwine/hermes-observational-memory` and shares the same local-first memory store used by Claude Code, Codex, OpenCode, Kimi Code CLI, Cowork, and Hermes.
